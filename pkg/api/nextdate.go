@@ -10,71 +10,73 @@ import (
 
 const dateFormat = "20060102"
 
+var weekdays [8]bool
+
 func NextDate(now time.Time, dstart string, repeat string) (string, error) {
 	start, err := time.Parse(dateFormat, dstart)
 	if err != nil {
 		return "", fmt.Errorf("ошибка преобразования даты: %v", err)
 	}
 
-	repeat = strings.TrimSpace(repeat)
 	if repeat == "" {
 		return "", fmt.Errorf("правило повторения не указано")
 	}
 
-	switch {
-	case repeat == "y":
-		next := start
-
-		if next.After(now) {
-			next = next.AddDate(1, 0, 0)
+	if repeat == "y" {
+		for !start.After(now) {
+			start = start.AddDate(1, 0, 0)
 		}
-
-		for !next.After(now) {
-			year := next.Year() + 1
-			month := start.Month()
-			day := start.Day()
-
-			if month == time.February && day == 29 {
-				if !(year%4 == 0 && (year%100 != 0 || year%400 == 0)) {
-					month = time.March
-					day = 1
-				}
-			}
-
-			next = time.Date(year, month, day, 0, 0, 0, 0, start.Location())
-		}
-
-		return next.Format(dateFormat), nil
-
-	case strings.HasPrefix(repeat, "d"):
-		parts := strings.Fields(repeat)
-		if len(parts) < 2 {
-			return "", fmt.Errorf("неподдерживаемый формат: %s", repeat)
-		}
-
-		interval, err := strconv.Atoi(parts[1])
-		if err != nil {
-			return "", fmt.Errorf("не удалось преобразовать интервал в число: %v", err)
-		}
-		if interval < 1 || interval > 400 {
-			return "", fmt.Errorf("интервал должен быть от 1 до 400 дней, получено: %d", interval)
-		}
-
-		next := start
-
-		if next.After(now) {
-			next = next.AddDate(0, 0, interval)
-		}
-
-		for !next.After(now) {
-			next = next.AddDate(0, 0, interval)
-		}
-
-		return next.Format(dateFormat), nil
-
-	default:
-		return "", fmt.Errorf("неподдерживаемый формат правила: %s", repeat)
+		return start.Format(dateFormat), nil
 	}
+
+	parts := strings.Split(repeat, " ")
+	if parts[0] != "d" || len(parts) < 2 {
+		return "", fmt.Errorf("неподдерживаемый формат: %s", repeat)
+	}
+
+	twoParts := strings.Split(parts[1], ",")
+	for _, part := range twoParts {
+		dayNum, err := strconv.Atoi(part)
+		if err != nil {
+			return "", fmt.Errorf("не удалось преобразовать день недели в число: %v", err)
+		}
+
+		if dayNum < 1 || dayNum > 7 {
+			return "", fmt.Errorf("день недели должен быть от 1 до 7, получено: %d", dayNum)
+		}
+
+		weekdays[dayNum] = true
+	}
+
+	for !start.After(now) {
+		start = start.AddDate(0, 0, 1)
+		weekday := int(start.Weekday())
+		if weekday == 0 {
+			weekday = 7
+		}
+		for !weekdays[weekday] {
+			start = start.AddDate(0, 0, 1)
+			weekday = int(start.Weekday())
+			if weekday == 0 {
+				weekday = 7
+			}
+		}
+	}
+
+	interval, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return "", fmt.Errorf("не удалось преобразовать интервал в число: %v", err)
+	}
+
+	if interval < 1 || interval > 400 {
+		return "", fmt.Errorf("интервал должен быть от 1 до 400 дней, получено: %d", interval)
+	}
+
+	for !start.After(now) {
+		start = start.AddDate(0, 0, interval)
+	}
+
+	return start.Format(dateFormat), nil
 }
 
 func nextDateHandler(w http.ResponseWriter, r *http.Request) {
@@ -84,7 +86,6 @@ func nextDateHandler(w http.ResponseWriter, r *http.Request) {
 
 	var now time.Time
 	var err error
-
 	if nowStr == "" {
 		now = time.Now()
 	} else {
