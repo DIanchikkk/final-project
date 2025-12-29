@@ -23,6 +23,14 @@ CREATE INDEX IF NOT EXISTS idx_date ON scheduler(date);
 `
 
 func Init(dbFile string) error {
+	if dbFile == "" {
+		dbFile = os.Getenv("TODO_DBFILE")
+	}
+
+	if dbFile == "" {
+		dbFile = "scheduler.db"
+	}
+
 	_, err := os.Stat(dbFile)
 	install := false
 	if err != nil {
