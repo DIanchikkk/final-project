@@ -7,21 +7,16 @@ import (
 	"time"
 )
 
-func addTaskHandler(w http.ResponseWriter, r *http.Request) {
+func AddTaskHandler(w http.ResponseWriter, r *http.Request) {
 	var task db.Task
 
-	err := json.NewDecoder(r.Body).Decode(&task)
-	if err != nil {
-		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Ошибка чтения JSON"})
+	if err := json.NewDecoder(r.Body).Decode(&task); err != nil {
+		WriteJson(w, map[string]string{"error": "Ошибка чтения JSON"})
 		return
 	}
 
 	if task.Title == "" {
-		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Не указан заголовок задачи"})
+		WriteJson(w, map[string]string{"error": "Не указан заголовок задачи"})
 		return
 	}
 
@@ -32,35 +27,31 @@ func addTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 	t, err := time.Parse("20060102", task.Date)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Неверный формат даты"})
+		WriteJson(w, map[string]string{"error": "Неверный формат даты"})
 		return
 	}
 
-	if t.Before(now) {
+	todayStr := now.Format("20060102")
+	today, _ := time.Parse("20060102", todayStr)
+
+	if t.Before(today) {
 		if task.Repeat != "" {
-			next, err := NextDate(now, task.Date, task.Repeat)
+			next, err := NextDate(today, task.Date, task.Repeat)
 			if err != nil {
-				w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-				w.WriteHeader(http.StatusBadRequest)
-				json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+				WriteJson(w, map[string]string{"error": err.Error()})
 				return
 			}
 			task.Date = next
 		} else {
-			task.Date = now.Format("20060102")
+			task.Date = todayStr
 		}
 	}
 
 	id, err := db.AddTask(&task)
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Ошибка добавления задачи в базу"})
+		WriteJson(w, map[string]string{"error": "Ошибка добавления задачи в базу"})
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	json.NewEncoder(w).Encode(map[string]interface{}{"id": id})
+	WriteJson(w, map[string]interface{}{"id": id})
 }

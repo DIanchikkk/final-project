@@ -80,3 +80,31 @@ func Tasks(limit int, search string) ([]*Task, error) {
 
 	return tasks, nil
 }
+
+func GetTask(id string) (*Task, error) {
+	query := `SELECT id, date, title, comment, repeat FROM scheduler WHERE id = ?`
+	task := &Task{}
+	err := DB.QueryRow(query, id).Scan(&task.ID, &task.Date, &task.Title, &task.Comment, &task.Repeat)
+	if err != nil {
+		return nil, fmt.Errorf("задача с id=%s не найдена", id)
+	}
+	return task, nil
+}
+
+func UpdateTask(task *Task) error {
+	query := `UPDATE scheduler SET date = ?, 
+				title = ?, comment = ?, 
+				repeat = ? WHERE id = ?`
+	res, err := DB.Exec(query, task.Date, task.Title, task.Comment, task.Repeat, task.ID)
+	if err != nil {
+		return fmt.Errorf("ошибка обновления задачи: %v", err)
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("ошибка получения количества обновленных строк: %v", err)
+	}
+	if affected == 0 {
+		return fmt.Errorf("задача с id=%s не найдена", task.ID)
+	}
+	return nil
+}
