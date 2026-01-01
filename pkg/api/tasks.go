@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"go1f/pkg/db"
 )
@@ -12,7 +13,7 @@ type TasksResp struct {
 }
 
 func tasksHandler(w http.ResponseWriter, r *http.Request) {
-	search := r.URL.Query().Get("search")
+	search := strings.TrimSpace(r.URL.Query().Get("search"))
 
 	tasks, err := db.Tasks(50, search)
 	if err != nil {
@@ -25,5 +26,5 @@ func tasksHandler(w http.ResponseWriter, r *http.Request) {
 
 func WriteJson(w http.ResponseWriter, data any) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	json.NewEncoder(w).Encode(data)
+	_ = json.NewEncoder(w).Encode(data)
 }
