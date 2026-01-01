@@ -54,7 +54,6 @@ func TaskHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// ⚠️ ОСТАВЛЯЕМ: важно для TestEditTask
 		if task.Repeat != "" {
 			now := time.Now()
 			if _, err := NextDate(now, now.Format("20060102"), task.Repeat); err != nil {
