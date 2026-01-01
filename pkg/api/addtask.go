@@ -2,9 +2,11 @@ package api
 
 import (
 	"encoding/json"
-	"go1f/pkg/db"
 	"net/http"
+	"strings"
 	"time"
+
+	"go1f/pkg/db"
 )
 
 func AddTaskHandler(w http.ResponseWriter, r *http.Request) {
@@ -20,7 +22,14 @@ func AddTaskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if task.Comment != "" &&
+		task.Comment != strings.TrimSpace(task.Comment) {
+		WriteJson(w, map[string]string{"error": "Некорректные данные задачи"})
+		return
+	}
+
 	now := time.Now()
+
 	if task.Date == "" {
 		task.Date = now.Format("20060102")
 	}
@@ -47,11 +56,14 @@ func AddTaskHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	task.Title = strings.TrimSpace(task.Title)
+	task.Comment = strings.TrimSpace(task.Comment)
+
 	id, err := db.AddTask(&task)
 	if err != nil {
 		WriteJson(w, map[string]string{"error": "Ошибка добавления задачи в базу"})
 		return
 	}
 
-	WriteJson(w, map[string]interface{}{"id": id})
+	WriteJson(w, map[string]any{"id": id})
 }
